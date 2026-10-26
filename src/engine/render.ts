@@ -13,6 +13,17 @@ export interface RenderOptions {
   format: OutputFormat;
   /** Qualité x264 (CRF) pour le MP4 ; plus bas = meilleure qualité. */
   crf?: number;
+  /**
+   * Chemin d'un fichier audio (mp3, wav, aac, m4a…) à muxer dans la vidéo.
+   * Ignoré pour le format GIF (le GIF ne porte pas de son).
+   */
+  audio?: string;
+  /**
+   * Comment caler la durée quand une piste audio est fournie :
+   * - "video" (défaut) : garde toute la vidéo ; l'audio est coupé ou se termine avant.
+   * - "shortest" : coupe la sortie à la plus courte des deux pistes.
+   */
+  audioFit?: "video" | "shortest";
   /** Chemin du binaire ffmpeg (défaut : "ffmpeg" dans le PATH). */
   ffmpegPath?: string;
   /** Callback de progression appelé après chaque frame. */
@@ -21,7 +32,7 @@ export interface RenderOptions {
 
 /** Construit les arguments ffmpeg selon le format demandé. */
 function ffmpegArgs(scene: Scene, opts: RenderOptions): string[] {
-  const common = [
+  const videoInput = [
     "-y",
     "-f", "rawvideo",
     "-pixel_format", "rgba",
@@ -32,20 +43,32 @@ function ffmpegArgs(scene: Scene, opts: RenderOptions): string[] {
 
   if (opts.format === "gif") {
     return [
-      ...common,
+      ...videoInput,
       "-vf",
       `fps=${scene.fps},split[s0][s1];[s0]palettegen=stats_mode=diff[p];[s1][p]paletteuse=dither=bayer`,
       opts.out,
     ];
   }
 
+  const hasAudio = Boolean(opts.audio);
+  const audioInput = hasAudio ? ["-i", opts.audio as string] : [];
+  // Avec audio : on coupe l'audio à la durée vidéo par défaut (audioFit "video").
+  const durationCtrl = hasAudio
+    ? opts.audioFit === "shortest"
+      ? ["-shortest"]
+      : ["-t", String(scene.durationInSeconds)]
+    : [];
+
   return [
-    ...common,
+    ...videoInput,
+    ...audioInput,
     "-c:v", "libx264",
     "-preset", "medium",
     "-crf", String(opts.crf ?? 18),
     "-pix_fmt", "yuv420p",
     "-movflags", "+faststart",
+    ...(hasAudio ? ["-map", "0:v:0", "-map", "1:a:0", "-c:a", "aac", "-b:a", "192k"] : []),
+    ...durationCtrl,
     opts.out,
   ];
 }
@@ -60,6 +83,10 @@ export async function render(scene: Scene, opts: RenderOptions): Promise<void> {
     throw new Error(
       `Les dimensions doivent être paires pour l'encodage vidéo (reçu ${scene.width}x${scene.height}).`,
     );
+  }
+
+  if (opts.audio && opts.format === "gif") {
+    console.warn("⚠ Le format GIF ne porte pas de son : l'option --audio est ignorée.");
   }
 
   await mkdir(dirname(opts.out), { recursive: true });

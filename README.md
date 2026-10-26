@@ -40,6 +40,28 @@ Options :
 
 Les fichiers rendus vont dans `out/` (ignoré par git).
 
+## Ajouter du son
+
+Fournis un fichier audio (`mp3`, `wav`, `aac`, `m4a`…) avec `--audio` : ffmpeg le
+mux dans le MP4 (encodé en AAC).
+
+```bash
+npm run render -- --scene intro --audio musique.mp3 --out out/intro.mp4
+```
+
+- Par défaut, la sortie garde **la durée de la vidéo** : si l'audio est plus long,
+  il est coupé ; s'il est plus court, le son se termine avant la fin.
+- `--audio-fit shortest` cale plutôt la sortie sur **la plus courte** des deux pistes.
+- Le **GIF** ne porte pas de son : `--audio` y est ignoré (avec un avertissement).
+
+| Option            | Description                                                 | Défaut              |
+| ----------------- | ----------------------------------------------------------- | ------------------- |
+| `-a, --audio`     | Fichier audio à muxer dans le MP4                           | *(aucun)*           |
+| `--audio-fit`     | `video` (garde la durée vidéo) ou `shortest`                | `video`             |
+
+> Astuce : pour générer un son de test sans fichier, ffmpeg peut en synthétiser un —
+> `ffmpeg -f lavfi -i "sine=frequency=330:duration=4" tone.mp3`.
+
 ## Créer une scène
 
 Une scène implémente l'interface `Scene` (`src/engine/types.ts`) : dimensions,

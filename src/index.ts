@@ -7,6 +7,8 @@ interface Args {
   out?: string;
   format: OutputFormat;
   crf?: number;
+  audio?: string;
+  audioFit?: "video" | "shortest";
   help: boolean;
 }
 
@@ -30,6 +32,13 @@ function parseArgs(argv: string[]): Args {
         break;
       case "--crf":
         args.crf = Number(next());
+        break;
+      case "-a":
+      case "--audio":
+        args.audio = next();
+        break;
+      case "--audio-fit":
+        args.audioFit = next() as "video" | "shortest";
         break;
       case "-h":
       case "--help":
@@ -56,6 +65,8 @@ function usage(): string {
     "  -o, --out <chemin>     Fichier de sortie (défaut : out/<scène>.<ext>)",
     "  -f, --format <fmt>     mp4 | gif (défaut : mp4)",
     "      --crf <n>          Qualité x264 pour le MP4, 0-51, plus bas = mieux (défaut : 18)",
+    "  -a, --audio <chemin>   Fichier audio à muxer dans le MP4 (mp3/wav/aac/m4a…)",
+    "      --audio-fit <mode> video | shortest — durée quand il y a de l'audio (défaut : video)",
     "  -h, --help             Affiche cette aide",
     "",
     `Scènes disponibles : ${sceneNames().join(", ")}`,
@@ -93,6 +104,8 @@ async function main(): Promise<void> {
     out,
     format: args.format,
     crf: args.crf,
+    audio: args.audio,
+    audioFit: args.audioFit,
     onProgress: (frame, total) => {
       if (frame === total || frame % scene.fps === 0) {
         const pct = Math.round((frame / total) * 100);
